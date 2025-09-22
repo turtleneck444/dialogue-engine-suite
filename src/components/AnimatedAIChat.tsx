@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Message {
   id: string;
@@ -14,10 +16,11 @@ interface Message {
 }
 
 const AnimatedAIChat = () => {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hello! I\'m your AI assistant. How can I help you today?',
+      content: "Hello! I'm your specialized AI assistant ready to help with technology, business, science, creative writing, education, health, finance, and personal development. What would you like to explore today?",
       role: 'assistant',
       timestamp: new Date()
     }
@@ -45,20 +48,45 @@ const AnimatedAIChat = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { message: currentInput }
+      });
+
+      if (error) {
+        throw error;
+      }
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'This is a demo response. Connect to Supabase to enable real AI functionality with OpenAI!',
+        content: data.response,
         role: 'assistant',
         timestamp: new Date()
       };
+
       setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+      
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, I'm having trouble responding right now. Please try again in a moment.",
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -210,7 +238,7 @@ const AnimatedAIChat = () => {
             </motion.div>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Connect to Supabase to enable real AI functionality
+            Powered by OpenAI • Ask me about technology, business, science, and more
           </p>
         </div>
       </div>
